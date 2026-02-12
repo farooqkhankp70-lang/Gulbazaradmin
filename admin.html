@@ -1,0 +1,1100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Royal Time Admin | Secure Login</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- FIREBASE COMPAT LIBRARIES -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+
+    <style>
+        /* ================= STYLES (LUXURY WATCH THEME) ================= */
+        :root { 
+            --primary: #1B263B;    /* Deep Navy */
+            --secondary: #C5A059;  /* Gold */
+            --dark: #0D1B2A;       /* Darker Navy */
+            --light: #F5F7FA;      /* Light Gray/Blue */
+            --white: #ffffff; 
+            --gray: #a1a5b7; 
+            --success: #50cd89; 
+            --danger: #f1416c; 
+            --warning: #ffc700; 
+            --info: #009ef7; 
+        }
+        * { margin:0; padding:0; box-sizing:border-box; font-family: 'Roboto', sans-serif; }
+        body { background: var(--light); height: 100vh; overflow: hidden; }
+
+        /* ================= LOGIN SCREEN STYLES ================= */
+        #login-section {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(135deg, var(--dark) 0%, #000 100%);
+            display: flex; justify-content: center; align-items: center;
+            z-index: 9999;
+        }
+        .login-card {
+            background: white; padding: 40px; border-radius: 10px;
+            width: 100%; max-width: 400px; text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5); border-top: 5px solid var(--secondary);
+        }
+        .login-logo { font-size: 2.5rem; color: var(--primary); margin-bottom: 10px; }
+        .login-title { margin-bottom: 25px; color: var(--primary); font-family: 'Playfair Display', serif; font-size: 1.5rem; }
+        .login-input {
+            width: 100%; padding: 12px; margin-bottom: 15px;
+            border: 1px solid #ddd; border-radius: 5px; font-size: 1rem;
+        }
+        .btn-login {
+            width: 100%; padding: 12px; background: var(--primary); color: var(--secondary);
+            border: 1px solid var(--primary); border-radius: 5px; font-size: 1rem; font-weight: bold;
+            cursor: pointer; transition: 0.3s; text-transform: uppercase; letter-spacing: 1px;
+        }
+        .btn-login:hover { background: var(--dark); color: white; }
+        .login-error { color: var(--danger); font-size: 0.9rem; margin-top: 10px; display: none; }
+
+        /* ================= ADMIN PANEL WRAPPER ================= */
+        #admin-wrapper {
+            display: none; /* Hidden by default until login */
+            height: 100%; width: 100%;
+        }
+
+        /* SIDEBAR */
+        aside { width: 260px; background: var(--dark); color: white; display: flex; flex-direction: column; transition: transform 0.3s ease; z-index: 1000; height: 100%; position: relative; border-right: 1px solid #2c3e50; }
+        .brand { height: 80px; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; font-weight: bold; border-bottom: 1px solid rgba(255,255,255,0.1); color: var(--secondary); font-family: 'Playfair Display', serif; }
+        .menu { padding: 20px 0; flex: 1; overflow-y: auto; }
+        .menu-item { padding: 15px 25px; cursor: pointer; color: var(--gray); display: flex; align-items: center; gap: 10px; transition: 0.3s; font-weight: 500; }
+        .menu-item:hover, .menu-item.active { background: rgba(255,255,255,0.05); color: var(--secondary); border-left: 4px solid var(--secondary); }
+        .menu-item i { width: 25px; }
+
+        /* MAIN */
+        main { flex: 1; overflow-y: auto; padding: 20px; position: relative; width: 100%; }
+        .mobile-header { display: none; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .toggle-btn { font-size: 1.5rem; cursor: pointer; color: var(--dark); }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; border-bottom: 2px solid #e0e0e0; padding-bottom: 10px; }
+        .header h2 { font-family: 'Playfair Display', serif; color: var(--primary); }
+
+        /* CARDS & FORMS */
+        .card { background: white; border-radius: 10px; padding: 20px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); margin-bottom: 20px; border: 1px solid #eee; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 6px; font-weight: 500; font-size: 0.9rem; color: var(--primary); }
+        .form-control { width: 100%; padding: 12px; border: 1px solid #dcdcdc; border-radius: 6px; outline: none; background: #fff; transition: 0.3s; }
+        .form-control:focus { border-color: var(--secondary); box-shadow: 0 0 0 2px rgba(197, 160, 89, 0.2); }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+
+        /* BUTTONS */
+        .btn { padding: 10px 18px; border: none; border-radius: 6px; cursor: pointer; color: white; font-weight: 500; font-size: 0.9rem; transition: 0.2s; display: inline-flex; align-items: center; gap: 5px; }
+        .btn-primary { background: var(--primary); color: var(--secondary); border: 1px solid var(--primary); }
+        .btn-primary:hover { background: var(--dark); color: white; }
+        .btn-danger { background: var(--danger); }
+        .btn-info { background: var(--info); }
+        .btn-upload { background: #333; }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .btn-sm { padding: 6px 10px; font-size: 0.8rem; }
+
+        /* SWITCH TOGGLE */
+        .switch { position: relative; display: inline-block; width: 40px; height: 22px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 34px; }
+        .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--secondary); }
+        input:checked + .slider:before { transform: translateX(18px); }
+
+        /* TABLES */
+        .table-responsive { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; min-width: 600px; }
+        th { text-align: left; padding: 15px; border-bottom: 2px solid var(--secondary); color: var(--primary); font-size: 0.85rem; text-transform: uppercase; white-space: nowrap; font-weight: bold; }
+        td { padding: 15px; border-bottom: 1px solid #eee; vertical-align: middle; font-size: 0.95rem; color: #444; }
+        .img-thumb { width: 50px; height: 50px; object-fit: cover; border-radius: 5px; border: 1px solid #eee; }
+        .badge { padding: 5px 10px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; color: white; text-transform: uppercase; }
+        .bg-pending { background: var(--warning); color: #000; }
+        .bg-approved { background: var(--info); }
+        .bg-shipped { background: var(--secondary); }
+        .bg-delivered { background: var(--success); }
+        .bg-rejected { background: var(--danger); }
+
+        /* UPLOAD & UTILS */
+        .upload-wrapper { display: flex; gap: 10px; align-items: center; }
+        .file-input { display: none; }
+        .upload-status { font-size: 0.8rem; color: var(--info); margin-left: 5px; display: none; }
+        .hidden { display: none !important; }
+        .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 900; display: none; }
+        
+        /* TOAST & DEBUGGER */
+        #toast { visibility: hidden; min-width: 250px; background-color: var(--primary); color: var(--secondary); text-align: center; border-radius: 5px; padding: 16px; position: fixed; z-index: 10000; left: 50%; bottom: 30px; transform: translateX(-50%); font-weight: bold; border: 1px solid var(--secondary); }
+        #toast.show { visibility: visible; animation: fadein 0.5s, fadeout 0.5s 2.5s; }
+        @keyframes fadein { from {bottom: 0; opacity: 0;} to {bottom: 30px; opacity: 1;} }
+        @keyframes fadeout { from {bottom: 30px; opacity: 1;} to {bottom: 0; opacity: 0;} }
+        #debug-console { position: fixed; bottom: 0; right: 0; width: 300px; height: 150px; background: #000; color: #0f0; font-family: monospace; font-size: 10px; overflow-y: auto; padding: 10px; z-index: 10001; opacity: 0.8; border-top-left-radius: 10px; display: none; }
+
+        @media (max-width: 768px) {
+            aside { position: fixed; left: -260px; top: 0; bottom: 0; box-shadow: 5px 0 15px rgba(0,0,0,0.1); }
+            aside.active { transform: translateX(260px); }
+            .overlay.active { display: block; }
+            .mobile-header { display: flex; }
+            .form-row { grid-template-columns: 1fr; }
+            #debug-console { width: 100%; height: 100px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ================= 1. LOGIN SECTION (VISIBLE BY DEFAULT) ================= -->
+    <div id="login-section">
+        <div class="login-card">
+            <div class="login-logo"><i class="fas fa-clock"></i></div>
+            <h2 class="login-title">Royal Time Admin</h2>
+            <form onsubmit="handleLogin(event)">
+                <input type="email" id="login-email" class="login-input" placeholder="Admin Email" required>
+                <input type="password" id="login-pass" class="login-input" placeholder="Password" required>
+                <button type="submit" id="btn-do-login" class="btn-login">Secure Login</button>
+            </form>
+            <div id="login-error-msg" class="login-error">Invalid Email or Password</div>
+            <div style="margin-top:15px; color:#888; font-size:0.8rem;">Authorized Personnel Only</div>
+        </div>
+    </div>
+
+    <!-- ================= 2. ADMIN PANEL (HIDDEN BY DEFAULT) ================= -->
+    <div id="admin-wrapper">
+        <div class="overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+        <div id="debug-console">System Log Initialized...</div>
+
+        <!-- SIDEBAR -->
+        <aside id="sidebar">
+            <div class="brand"><i class="fas fa-clock" style="margin-right:10px;"></i> Royal Time</div>
+            <div class="menu">
+                <div class="menu-item active" onclick="showSection('dashboard', this)"><i class="fas fa-th-large"></i> Dashboard</div>
+                <div class="menu-item" onclick="showSection('orders', this)"><i class="fas fa-box-open"></i> Orders</div>
+                <div class="menu-item" onclick="showSection('products', this)"><i class="fas fa-watch"></i> Watches</div>
+                <div class="menu-item" onclick="showSection('categories', this)"><i class="fas fa-tags"></i> Collections</div>
+                <div class="menu-item" onclick="showSection('sliders', this)"><i class="fas fa-images"></i> Home Sliders</div>
+                <div class="menu-item" onclick="showSection('settings', this)"><i class="fas fa-cog"></i> Settings</div>
+            </div>
+            <div style="padding:20px; text-align:center;">
+                <button class="btn btn-sm btn-info" onclick="testConnection()">Check Connection</button>
+                <button class="btn btn-sm btn-danger" onclick="handleLogout()" style="margin-top:5px; width:100%;">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </button>
+            </div>
+        </aside>
+
+        <!-- MAIN -->
+        <main>
+            <div class="mobile-header">
+                <div class="toggle-btn" onclick="toggleSidebar()"><i class="fas fa-bars"></i> Menu</div>
+                <div style="font-weight:bold; color:var(--primary); font-family: 'Playfair Display';">Royal Time</div>
+            </div>
+
+            <!-- DASHBOARD -->
+            <div id="dashboard" class="section">
+                <div class="header"><h2>Dashboard</h2></div>
+                <div class="form-row" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+                    <div class="card" style="text-align:center; border-top:4px solid var(--primary);">
+                        <h1 id="dash-orders">0</h1>
+                        <p style="color:gray;">Total Orders</p>
+                    </div>
+                    <div class="card" style="text-align:center; border-top:4px solid var(--secondary);">
+                        <h1 id="dash-products">0</h1>
+                        <p style="color:gray;">Active Watches</p>
+                    </div>
+                    <div class="card" style="text-align:center; border-top:4px solid var(--warning);">
+                        <h1 id="dash-sales">0</h1>
+                        <p style="color:gray;">Pending Orders</p>
+                    </div>
+                </div>
+                <div class="card">
+                    <h3>System Status</h3>
+                    <p id="status-text" style="color:gray;">Checking Authentication...</p>
+                </div>
+            </div>
+
+            <!-- PRODUCTS SECTION (Renamed to WATCHES) -->
+            <div id="products" class="section hidden">
+                <div class="header">
+                    <h2>Watches Inventory</h2>
+                    <button class="btn btn-primary" onclick="openProductForm()"><i class="fas fa-plus"></i> Add New Watch</button>
+                </div>
+                
+                <div class="card hidden" id="product-form-card" style="border:1px solid var(--secondary);">
+                    <h3 style="margin-bottom:15px; color:var(--primary);" id="p-form-title">Add New Watch</h3>
+                    <input type="hidden" id="p-key">
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Watch Name / Model</label>
+                            <input type="text" class="form-control" id="p-name" placeholder="E.g Rolex Submariner Gold">
+                        </div>
+                        <div class="form-group">
+                            <label>Collection (Category)</label>
+                            <select class="form-control" id="p-cat-select"></select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Watch Image (Upload or URL)</label>
+                        <div class="upload-wrapper">
+                            <input type="text" class="form-control" id="p-imgs" placeholder="https://..." >
+                            <input type="file" id="p-file-input" class="file-input" accept="image/*" onchange="uploadImage(this, 'p-imgs')">
+                            <button type="button" class="btn btn-upload" onclick="document.getElementById('p-file-input').click()"><i class="fas fa-cloud-upload-alt"></i> Upload</button>
+                        </div>
+                        <span id="p-imgs-loader" class="upload-status"><i class="fas fa-spinner fa-spin"></i> Uploading...</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Description (Features, Warranty etc.)</label>
+                        <textarea class="form-control" id="p-desc" rows="3" placeholder="Details about movement, glass, water resistance..."></textarea>
+                    </div>
+                    
+                    <div style="background:#f8f9fa; padding:15px; border-radius:5px; margin-bottom:15px; border:1px dashed #ccc;">
+                        <label style="font-weight:bold; color:var(--primary);">Variants (Strap, Color, Dial Size)</label>
+                        <div id="variant-container"></div>
+                        <button type="button" class="btn btn-sm btn-info" onclick="addVariantRow()" style="margin-top:10px;">+ Add Variant</button>
+                    </div>
+
+                    <div class="form-row">
+                        <button type="button" class="btn btn-primary" id="btn-save-prod" onclick="saveProduct()">Save Watch</button>
+                        <button type="button" class="btn btn-danger" onclick="document.getElementById('product-form-card').classList.add('hidden')">Cancel</button>
+                    </div>
+                </div>
+
+                <div class="card table-responsive">
+                    <table id="products-table">
+                        <thead><tr><th>Image</th><th>Model Name</th><th>Collection</th><th>Base Price</th><th>Actions</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- CATEGORIES SECTION -->
+            <div id="categories" class="section hidden">
+                <div class="header"><h2>Watch Collections</h2></div>
+                <div class="card">
+                    <h4 style="margin-bottom:10px;" id="c-form-title">Add / Edit Collection</h4>
+                    <input type="hidden" id="c-key">
+                    <div class="form-row" style="align-items: end;">
+                        <div class="form-group">
+                            <label>Collection Name</label>
+                            <input type="text" class="form-control" id="c-name" placeholder="e.g Luxury, Smart, Sport">
+                            <small style="color:var(--secondary);">This will be displayed on the website.</small>
+                        </div>
+                        <div class="form-group">
+                            <label>Sorting ID (Internal)</label>
+                            <input type="text" class="form-control" id="c-id" placeholder="e.g luxury_watches">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Collection Image</label>
+                        <div class="upload-wrapper">
+                            <input type="text" class="form-control" id="c-img" placeholder="https://...">
+                            <input type="file" id="c-file-input" class="file-input" accept="image/*" onchange="uploadImage(this, 'c-img')">
+                            <button type="button" class="btn btn-upload" onclick="document.getElementById('c-file-input').click()"><i class="fas fa-camera"></i> Upload</button>
+                        </div>
+                        <span id="c-img-loader" class="upload-status"><i class="fas fa-spinner fa-spin"></i> Uploading...</span>
+                    </div>
+                    <div style="margin-top:10px;">
+                        <button type="button" class="btn btn-primary" id="btn-save-cat" onclick="saveCategory()">Save Collection</button>
+                        <button type="button" class="btn btn-danger hidden" id="c-cancel-btn" onclick="resetCatForm()">Cancel</button>
+                    </div>
+                </div>
+                <div class="card table-responsive">
+                    <table id="cats-table">
+                        <thead><tr><th>Img</th><th>Name</th><th>Internal ID</th><th>Actions</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- SLIDERS SECTION -->
+            <div id="sliders" class="section hidden">
+                <div class="header"><h2>Home Banners</h2></div>
+                <div class="card">
+                    <h4 style="margin-bottom:10px;" id="s-form-title">Add / Edit Banner</h4>
+                    <input type="hidden" id="s-key">
+                    <div class="form-group">
+                        <label>Banner Title (Overlay Text)</label>
+                        <input type="text" class="form-control" id="s-title" placeholder="e.g New Arrivals 2025">
+                    </div>
+                    <div class="form-group">
+                        <label>Banner Image (Landscape Recommended)</label>
+                        <div class="upload-wrapper">
+                            <input type="text" class="form-control" id="s-img" placeholder="https://...">
+                            <input type="file" id="s-file-input" class="file-input" accept="image/*" onchange="uploadImage(this, 's-img')">
+                            <button type="button" class="btn btn-upload" onclick="document.getElementById('s-file-input').click()"><i class="fas fa-image"></i> Upload</button>
+                        </div>
+                        <span id="s-img-loader" class="upload-status"><i class="fas fa-spinner fa-spin"></i> Uploading...</span>
+                    </div>
+                    <div style="margin-top:15px;">
+                        <button type="button" class="btn btn-primary" id="btn-save-slide" onclick="saveSlider()">Save Banner</button>
+                        <button type="button" class="btn btn-danger hidden" id="s-cancel-btn" onclick="resetSliderForm()">Cancel</button>
+                    </div>
+                </div>
+                <div class="card table-responsive">
+                    <table id="slider-table">
+                        <thead><tr><th>Preview</th><th>Title</th><th>Actions</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- ORDERS SECTION -->
+            <div id="orders" class="section hidden">
+                <div class="header"><h2>Customer Orders</h2></div>
+                <div class="card table-responsive">
+                    <table id="orders-table">
+                        <!-- Added Payment Info Header -->
+                        <thead><tr><th>ID</th><th>Date</th><th>Customer</th><th>Watch Details</th><th>Payment</th><th>Total</th><th>Status</th><th>Update</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- SETTINGS SECTION -->
+            <div id="settings" class="section hidden">
+                <div class="header"><h2>Store Settings</h2></div>
+                
+                <div class="card" style="max-width:800px; border:2px solid var(--danger);">
+                    <h3 style="margin-bottom:15px; color:var(--danger); border-bottom:1px solid #eee; padding-bottom:10px;">
+                        <i class="fas fa-tools"></i> Data Tools
+                    </h3>
+                    <p style="margin-bottom:15px; color:#555;">
+                        Click below if you imported data from an old store format. This updates category IDs to match the new naming system.
+                    </p>
+                    <button type="button" class="btn btn-danger" onclick="fixOldCategories()">
+                        <i class="fas fa-magic"></i> Fix Product Categories
+                    </button>
+                </div>
+
+                <div class="card" style="max-width:800px;">
+                    <h3 style="margin-bottom:15px; border-bottom:1px solid #eee; padding-bottom:10px;">Contact Info</h3>
+                    <div class="form-group">
+                        <label>WhatsApp Number (without +)</label>
+                        <input type="text" class="form-control" id="set-phone" placeholder="923001234567">
+                    </div>
+                    <div class="form-group">
+                        <label>Support Email</label>
+                        <input type="text" class="form-control" id="set-email">
+                    </div>
+                    <div class="form-group">
+                        <label>Store Address</label>
+                        <input type="text" class="form-control" id="set-address">
+                    </div>
+                </div>
+
+                <div class="card" style="max-width:800px;">
+                    <h3 style="margin-bottom:15px; border-bottom:1px solid #eee; padding-bottom:10px;">Payment Configuration</h3>
+                    
+                    <!-- COD -->
+                    <div class="form-group" style="display:flex; justify-content:space-between; align-items:center; background:#f9f9f9; padding:15px; border-radius:5px;">
+                        <div>
+                            <strong>Cash On Delivery (COD)</strong>
+                            <p style="font-size:0.8rem; color:#666;">Enable standard shipping payment.</p>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="pay-cod">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+
+                    <!-- EasyPaisa -->
+                    <div class="form-group" style="border:1px solid #ddd; padding:15px; border-radius:5px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                            <div style="display:flex; align-items:center; gap:10px;">
+                                <img src="https://easypaisa.com.pk/assets/images/header-logo.png" style="height:30px;">
+                                <strong>EasyPaisa</strong>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="pay-ep">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <div class="form-row">
+                            <div>
+                                <label>Account Title</label>
+                                <input type="text" class="form-control" id="ep-title" placeholder="e.g Muhammad Ali">
+                            </div>
+                            <div>
+                                <label>Account Number</label>
+                                <input type="text" class="form-control" id="ep-num" placeholder="03001234567">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- JazzCash -->
+                    <div class="form-group" style="border:1px solid #ddd; padding:15px; border-radius:5px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                            <div style="display:flex; align-items:center; gap:10px;">
+                                <img src="https://upload.wikimedia.org/wikipedia/commons/2/28/JazzCash_logo.png" style="height:30px; object-fit:contain;">
+                                <strong>JazzCash</strong>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="pay-jc">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <div class="form-row">
+                            <div>
+                                <label>Account Title</label>
+                                <input type="text" class="form-control" id="jc-title" placeholder="e.g Muhammad Ali">
+                            </div>
+                            <div>
+                                <label>Account Number</label>
+                                <input type="text" class="form-control" id="jc-num" placeholder="03001234567">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group" style="display:flex; justify-content:space-between; align-items:center; background:#f9f9f9; padding:15px; border-radius:5px;">
+                        <div>
+                            <strong>Order via WhatsApp</strong>
+                            <p style="font-size:0.8rem; color:#666;">Allow customers to discuss order on WA.</p>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="pay-wa">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+
+                    <div style="margin-top:20px;">
+                        <button type="button" class="btn btn-primary" id="btn-save-set" onclick="saveSettings()" style="width:100%; justify-content:center; padding:15px;">
+                            <i class="fas fa-save"></i> Save All Settings
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    <!-- END ADMIN WRAPPER -->
+
+    <div id="toast">Saved Successfully</div>
+
+    <!-- MAIN SCRIPT -->
+    <script>
+        // --- LOGGING UTILITY ---
+        function log(msg) {
+            console.log(msg);
+            const div = document.getElementById('debug-console');
+            const p = document.createElement('div');
+            p.innerText = "> " + msg;
+            div.appendChild(p);
+            div.scrollTop = div.scrollHeight;
+        }
+
+        function toggleDebug() {
+            const d = document.getElementById('debug-console');
+            d.style.display = d.style.display === 'none' ? 'block' : 'none';
+        }
+
+        // --- FIREBASE INIT ---
+        const firebaseConfig = {
+  apiKey: "AIzaSyCIL7G3O2RORkb1SdrZ40B_S7KQMS1XNlQ",
+  authDomain: "gulbazar-53c25.firebaseapp.com",
+  databaseURL: "https://gulbazar-53c25-default-rtdb.firebaseio.com",
+  projectId: "gulbazar-53c25",
+  storageBucket: "gulbazar-53c25.firebasestorage.app",
+  messagingSenderId: "955032022551",
+  appId: "1:955032022551:web:45fe87126fe3e187453652",
+  measurementId: "G-SH3EBQZW5S"
+};
+
+        let db, auth;
+        try {
+            firebase.initializeApp(firebaseConfig);
+            db = firebase.database();
+            auth = firebase.auth();
+            log("Firebase Initialized.");
+        } catch(e) {
+            alert("Critical Error: Firebase failed to start.");
+        }
+
+        // --- AUTHENTICATION STATE OBSERVER ---
+        // This is the gatekeeper. It checks if user is logged in.
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                // User is signed in. Show Admin Panel.
+                log("User authenticated: " + user.email);
+                document.getElementById('login-section').style.display = 'none';
+                document.getElementById('admin-wrapper').style.display = 'flex';
+                // Start listening to database only after login
+                initAdminData();
+            } else {
+                // No user is signed in. Show Login.
+                log("No user logged in.");
+                document.getElementById('login-section').style.display = 'flex';
+                document.getElementById('admin-wrapper').style.display = 'none';
+            }
+        });
+
+        // --- LOGIN FUNCTION ---
+        function handleLogin(e) {
+            e.preventDefault();
+            const email = document.getElementById('login-email').value;
+            const pass = document.getElementById('login-pass').value;
+            const btn = document.getElementById('btn-do-login');
+            const err = document.getElementById('login-error-msg');
+
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Logging in...';
+            btn.disabled = true;
+            err.style.display = 'none';
+
+            auth.signInWithEmailAndPassword(email, pass)
+                .then((userCredential) => {
+                    // Success handled by onAuthStateChanged
+                    log("Login Successful");
+                })
+                .catch((error) => {
+                    btn.innerHTML = 'Secure Login';
+                    btn.disabled = false;
+                    err.innerText = "Error: " + error.message;
+                    err.style.display = 'block';
+                    log("Login Failed: " + error.message);
+                });
+        }
+
+        // --- LOGOUT FUNCTION ---
+        function handleLogout() {
+            if(confirm("Are you sure you want to logout?")) {
+                auth.signOut().then(() => {
+                    window.location.reload(); // Refresh to clear state
+                }).catch((error) => {
+                    alert("Logout failed");
+                });
+            }
+        }
+
+        // --- UI HELPERS ---
+        function showToast(msg) {
+            const t = document.getElementById("toast");
+            t.innerText = msg;
+            t.className = "show";
+            setTimeout(() => t.className = t.className.replace("show", ""), 3000);
+            log("Toast: " + msg);
+        }
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('active');
+            document.getElementById('sidebar-overlay').classList.toggle('active');
+        }
+
+        function showSection(id, el) {
+            document.querySelectorAll('.section').forEach(s => s.classList.add('hidden'));
+            document.getElementById(id).classList.remove('hidden');
+            document.querySelectorAll('.menu-item').forEach(m => m.classList.remove('active'));
+            el.classList.add('active');
+            if(window.innerWidth <= 768) toggleSidebar();
+        }
+
+        function setLoading(btnId, isLoading, text="Save") {
+            const btn = document.getElementById(btnId);
+            if(btn) {
+                btn.disabled = isLoading;
+                btn.innerHTML = isLoading ? '<i class="fas fa-spinner fa-spin"></i> Saving...' : text;
+            }
+        }
+
+        function testConnection() {
+            log("Testing Connection...");
+            if(!db) { alert("Database not loaded"); return; }
+            db.ref('test_connection').set({ timestamp: Date.now(), status: 'OK' })
+            .then(() => {
+                alert("Connection Successful! You have ADMIN WRITE access.");
+                log("Connection Test: SUCCESS");
+            })
+            .catch((e) => {
+                alert("CONNECTION FAILED:\n" + e.message + "\n\nAre you using the correct Admin Account?");
+                log("Connection Test FAILED: " + e.message);
+            });
+        }
+
+        // --- IMGBB UPLOAD ---
+        async function uploadImage(input, targetId) {
+            const file = input.files[0];
+            if (!file) return;
+
+            document.getElementById(targetId + '-loader').style.display = 'inline-block';
+            log("Uploading Image...");
+            
+            const formData = new FormData();
+            formData.append("image", file);
+            
+            try {
+                const res = await fetch("https://api.imgbb.com/1/upload?key=db801e55f83a34710dc37d103f1048a8", {
+                    method: "POST", body: formData
+                });
+                const data = await res.json();
+                if (data.success) {
+                    document.getElementById(targetId).value = data.data.url;
+                    showToast("Image Uploaded!");
+                    log("Image Upload Success: " + data.data.url);
+                } else {
+                    alert("ImgBB Error: " + data.error?.message);
+                    log("ImgBB Error: " + data.error?.message);
+                }
+            } catch (err) {
+                alert("Network Error uploading image");
+                log("ImgBB Network Error");
+            } finally {
+                document.getElementById(targetId + '-loader').style.display = 'none';
+            }
+        }
+
+        // ================= READ DATA (CALLED ONLY AFTER LOGIN) =================
+        function initAdminData() {
+            if(!db) return;
+
+            document.getElementById('status-text').innerText = "System Online & Secure";
+            document.getElementById('status-text').style.color = "green";
+
+            // PRODUCTS
+            db.ref('products').on('value', (snapshot) => {
+                log("Data received: Products");
+                const data = snapshot.val();
+                const tbody = document.querySelector('#products-table tbody');
+                tbody.innerHTML = '';
+                let count = 0;
+                if (data) {
+                    Object.entries(data).forEach(([key, p]) => {
+                        count++;
+                        const price = p.variants && p.variants[0] ? p.variants[0].price : 0;
+                        tbody.innerHTML += `
+                            <tr>
+                                <td><img src="${p.img ? p.img[0] : ''}" class="img-thumb"></td>
+                                <td>${p.name}</td>
+                                <td>${p.cat}</td>
+                                <td>${price}</td>
+                                <td>
+                                    <button class="btn btn-sm btn-info" onclick='editProduct("${key}", ${JSON.stringify(p).replace(/'/g, "&#39;")})'><i class="fas fa-edit"></i></button>
+                                    <button class="btn btn-sm btn-danger" onclick="deleteItem('products/${key}')"><i class="fas fa-trash"></i></button>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                }
+                document.getElementById('dash-products').innerText = count;
+            }, (error) => {
+                log("Read Error (Products): " + error.message);
+                document.getElementById('status-text').innerText = "Permission Denied (Products)";
+            });
+
+            // CATEGORIES
+            db.ref('categories').on('value', (snapshot) => {
+                log("Data received: Categories");
+                const data = snapshot.val();
+                const tbody = document.querySelector('#cats-table tbody');
+                const select = document.getElementById('p-cat-select');
+                tbody.innerHTML = '';
+                select.innerHTML = '<option value="">Select Collection</option>';
+                if (data) {
+                    Object.entries(data).forEach(([key, c]) => {
+                        // FIX: Using c.name for value so products link by Name, not Code
+                        select.innerHTML += `<option value="${c.name}">${c.name}</option>`;
+                        tbody.innerHTML += `
+                            <tr>
+                                <td><img src="${c.img}" class="img-thumb"></td>
+                                <td>${c.name}</td>
+                                <td>${c.id}</td>
+                                <td>
+                                    <button class="btn btn-sm btn-info" onclick='editCategory("${key}", ${JSON.stringify(c).replace(/'/g, "&#39;")})'><i class="fas fa-edit"></i></button>
+                                    <button class="btn btn-sm btn-danger" onclick="deleteItem('categories/${key}')"><i class="fas fa-trash"></i></button>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                }
+            });
+
+            // SLIDERS
+            db.ref('hero_slides').on('value', (snapshot) => {
+                log("Data received: Sliders");
+                const data = snapshot.val();
+                const tbody = document.querySelector('#slider-table tbody');
+                tbody.innerHTML = '';
+                if (data) {
+                    Object.entries(data).forEach(([key, s]) => {
+                        tbody.innerHTML += `
+                            <tr>
+                                <td><img src="${s.img}" class="img-thumb" style="width:100px;"></td>
+                                <td>${s.title}</td>
+                                <td>
+                                    <button class="btn btn-sm btn-info" onclick='editSlider("${key}", ${JSON.stringify(s).replace(/'/g, "&#39;")})'><i class="fas fa-edit"></i></button>
+                                    <button class="btn btn-sm btn-danger" onclick="deleteItem('hero_slides/${key}')"><i class="fas fa-trash"></i></button>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                }
+            });
+
+            // ORDERS
+            db.ref('orders').on('value', (snapshot) => {
+                log("Data received: Orders");
+                const data = snapshot.val();
+                const tbody = document.querySelector('#orders-table tbody');
+                tbody.innerHTML = '';
+                let count = 0;
+                let pending = 0;
+                if (data) {
+                    Object.entries(data).reverse().forEach(([key, o]) => {
+                        count++;
+                        if(o.status === 'pending') pending++;
+                        
+                        let badge = 'bg-pending';
+                        if(o.status === 'approved') badge = 'bg-approved';
+                        if(o.status === 'shipped') badge = 'bg-shipped';
+                        if(o.status === 'delivered') badge = 'bg-delivered';
+                        if(o.status === 'rejected') badge = 'bg-rejected';
+
+                        const itemsHtml = o.items ? o.items.map(i => `<div>${i.qty}x ${i.name} <small>(${i.variantName})</small></div>`).join('') : '';
+
+                        // Payment Logic
+                        const payInfo = o.payment || {};
+                        const method = payInfo.method ? payInfo.method.toUpperCase() : 'COD';
+                        const trx = payInfo.trxId ? `<div style="font-size:0.8rem; margin-top:3px;">Trx: ${payInfo.trxId}</div>` : '';
+                        const proof = payInfo.screenshot ? 
+                            `<a href="${payInfo.screenshot}" target="_blank" style="display:inline-block; margin-top:5px; font-size:0.8rem; color:blue; text-decoration:underline;">[View Screenshot]</a>` : '';
+
+                        tbody.innerHTML += `
+                            <tr>
+                                <td><b>#${o.orderId.toString().slice(-5)}</b></td>
+                                <td><small>${new Date(o.date).toLocaleDateString()}</small></td>
+                                <td>
+                                    <strong>${o.customer.name}</strong><br>
+                                    ${o.customer.phone}<br>
+                                    <small style="display:block; margin-top:5px; color:#555; background:#f0f0f0; padding:4px; border-radius:3px;">${o.customer.address}</small>
+                                </td>
+                                <td><small>${itemsHtml}</small></td>
+                                <td>
+                                    <span style="font-weight:bold; font-size:0.9rem;">${method}</span>
+                                    ${trx}
+                                    ${proof}
+                                </td>
+                                <td><b>${o.total}</b></td>
+                                <td><span class="badge ${badge}">${o.status}</span></td>
+                                <td>
+                                    <select onchange="updateOrderStatus('${key}', this.value)" style="padding:5px;">
+                                        <option value="" disabled selected>Action</option>
+                                        <option value="approved">Approve</option>
+                                        <option value="shipped">Ship</option>
+                                        <option value="delivered">Deliver</option>
+                                        <option value="rejected">Reject</option>
+                                    </select>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                }
+                document.getElementById('dash-orders').innerText = count;
+                document.getElementById('dash-sales').innerText = pending;
+            });
+
+            // SETTINGS & PAYMENT METHODS
+            db.ref('settings').on('value', (snapshot) => {
+                const s = snapshot.val();
+                if(s) {
+                    // General
+                    document.getElementById('set-phone').value = s.phone || '';
+                    document.getElementById('set-email').value = s.email || '';
+                    document.getElementById('set-address').value = s.address || '';
+                    
+                    // Payment Toggles
+                    const pm = s.payment_methods || {};
+                    document.getElementById('pay-cod').checked = pm.cod || false;
+                    document.getElementById('pay-ep').checked = pm.easypaisa || false;
+                    document.getElementById('pay-jc').checked = pm.jazzcash || false;
+                    document.getElementById('pay-wa').checked = pm.whatsapp || false;
+
+                    // Accounts
+                    const acc = s.accounts || {};
+                    if(acc.easypaisa) {
+                        document.getElementById('ep-title').value = acc.easypaisa.title || '';
+                        document.getElementById('ep-num').value = acc.easypaisa.number || '';
+                    }
+                    if(acc.jazzcash) {
+                        document.getElementById('jc-title').value = acc.jazzcash.title || '';
+                        document.getElementById('jc-num').value = acc.jazzcash.number || '';
+                    }
+                }
+            });
+        }
+
+        // ================= WRITES =================
+
+        function deleteItem(path) {
+            if(confirm("Are you sure? This action cannot be undone.")) {
+                log("Deleting: " + path);
+                db.ref(path).remove()
+                    .then(() => showToast("Deleted Successfully"))
+                    .catch(e => {
+                        alert("Delete Failed: " + e.message);
+                        log("Delete Error: " + e.message);
+                    });
+            }
+        }
+
+        // --- PRODUCTS (WATCHES) ---
+        function openProductForm() {
+            document.getElementById('product-form-card').classList.remove('hidden');
+            document.getElementById('p-form-title').innerText = "Add New Watch";
+            document.getElementById('p-key').value = "";
+            document.getElementById('p-name').value = "";
+            document.getElementById('p-cat-select').value = ""; 
+            document.getElementById('p-imgs').value = "";
+            document.getElementById('p-desc').value = "";
+            document.getElementById('variant-container').innerHTML = "";
+            addVariantRow("Standard", ""); // Default placeholder
+        }
+
+        function addVariantRow(label='', price='') {
+            const div = document.createElement('div');
+            div.className = 'form-row';
+            div.style.marginBottom = '5px';
+            div.innerHTML = `
+                <input type="text" placeholder="Detail (e.g Silver Chain)" class="form-control v-label" value="${label}">
+                <input type="number" placeholder="Price (PKR)" class="form-control v-price" value="${price}">
+            `;
+            document.getElementById('variant-container').appendChild(div);
+        }
+
+        function editProduct(key, p) {
+            openProductForm();
+            document.getElementById('p-form-title').innerText = "Edit Watch";
+            document.getElementById('p-key').value = key;
+            document.getElementById('p-name').value = p.name;
+            document.getElementById('p-cat-select').value = p.cat;
+            document.getElementById('p-imgs').value = Array.isArray(p.img) ? p.img[0] : p.img;
+            document.getElementById('p-desc').value = p.desc;
+            document.getElementById('variant-container').innerHTML = "";
+            if(p.variants) p.variants.forEach(v => addVariantRow(v.label, v.price));
+            else addVariantRow();
+            document.getElementById('products').scrollIntoView();
+        }
+
+        function saveProduct() {
+            log("Attempting to Save Product...");
+            setLoading('btn-save-prod', true);
+            const key = document.getElementById('p-key').value;
+            const name = document.getElementById('p-name').value;
+            const cat = document.getElementById('p-cat-select').value;
+            const img = document.getElementById('p-imgs').value;
+            const desc = document.getElementById('p-desc').value;
+
+            const variants = [];
+            document.querySelectorAll('#variant-container .form-row').forEach(r => {
+                const l = r.querySelector('.v-label').value;
+                const p = r.querySelector('.v-price').value;
+                if(l && p) variants.push({label: l, price: Number(p)});
+            });
+
+            if(!name || !cat || !img || variants.length === 0) {
+                alert("Please fill all required fields (Name, Category, Image, Price).");
+                setLoading('btn-save-prod', false);
+                return;
+            }
+
+            const data = { id: Date.now(), name, cat, img: [img], desc, variants };
+
+            const ref = key ? db.ref(`products/${key}`) : db.ref('products').push();
+            const promise = key ? ref.update(data) : ref.set(data);
+
+            promise.then(() => {
+                showToast("Watch Saved Successfully!");
+                log("Product Saved");
+                document.getElementById('product-form-card').classList.add('hidden');
+            }).catch((e) => {
+                alert("SAVE FAILED: " + e.message);
+                log("Save Error: " + e.message);
+            }).finally(() => {
+                setLoading('btn-save-prod', false, "Save Watch");
+            });
+        }
+
+        // --- CATEGORIES ---
+        function saveCategory() {
+            log("Attempting to Save Category...");
+            setLoading('btn-save-cat', true);
+            const key = document.getElementById('c-key').value;
+            const name = document.getElementById('c-name').value;
+            const id = document.getElementById('c-id').value;
+            const img = document.getElementById('c-img').value;
+
+            if(!name || !id || !img) {
+                alert("All fields required");
+                setLoading('btn-save-cat', false);
+                return;
+            }
+
+            const data = { name, id, img };
+            const ref = key ? db.ref(`categories/${key}`) : db.ref('categories').push();
+            const promise = key ? ref.update(data) : ref.set(data);
+
+            promise.then(() => {
+                showToast("Collection Saved");
+                resetCatForm();
+            }).catch(e => {
+                alert("Error: " + e.message);
+            }).finally(() => setLoading('btn-save-cat', false, "Save Collection"));
+        }
+
+        function editCategory(key, c) {
+            document.getElementById('c-form-title').innerText = "Edit Collection";
+            document.getElementById('c-key').value = key;
+            document.getElementById('c-name').value = c.name;
+            document.getElementById('c-id').value = c.id;
+            document.getElementById('c-img').value = c.img;
+            document.getElementById('c-cancel-btn').classList.remove('hidden');
+            document.getElementById('categories').scrollIntoView();
+        }
+
+        function resetCatForm() {
+            document.getElementById('c-form-title').innerText = "Add / Edit Collection";
+            document.getElementById('c-key').value = "";
+            document.getElementById('c-name').value = "";
+            document.getElementById('c-id').value = "";
+            document.getElementById('c-img').value = "";
+            document.getElementById('c-cancel-btn').classList.add('hidden');
+        }
+
+        // --- FIX OLD DATA FUNCTION (MIGRATION) ---
+        function fixOldCategories() {
+            if(!confirm("Are you sure? This will update products to use the new Category naming convention.")) return;
+
+            log("Starting Data Fix...");
+            
+            db.ref('categories').once('value').then(catSnap => {
+                const cats = catSnap.val();
+                if(!cats) { alert("No categories found."); return; }
+                
+                const mapIdToName = {};
+                Object.values(cats).forEach(c => {
+                    if(c.id && c.name) mapIdToName[c.id] = c.name;
+                });
+
+                db.ref('products').once('value').then(prodSnap => {
+                    const prods = prodSnap.val();
+                    if(!prods) { alert("No products found."); return; }
+
+                    let updates = {};
+                    let count = 0;
+
+                    Object.keys(prods).forEach(key => {
+                        const p = prods[key];
+                        if(mapIdToName[p.cat]) {
+                            updates[`products/${key}/cat`] = mapIdToName[p.cat];
+                            count++;
+                        }
+                    });
+
+                    if(count > 0) {
+                        db.ref().update(updates)
+                        .then(() => {
+                            alert(`Success! Updated ${count} watches.`);
+                            log(`Fixed ${count} items.`);
+                        })
+                        .catch(e => alert("Fix Failed: " + e.message));
+                    } else {
+                        alert("Data is already up to date.");
+                    }
+                });
+            });
+        }
+
+        // --- SLIDERS ---
+        function saveSlider() {
+            log("Attempting to Save Slider...");
+            setLoading('btn-save-slide', true);
+            const key = document.getElementById('s-key').value;
+            const title = document.getElementById('s-title').value;
+            const img = document.getElementById('s-img').value;
+
+            if(!title || !img) {
+                alert("Title and Image required");
+                setLoading('btn-save-slide', false);
+                return;
+            }
+
+            const data = { title, img };
+            const ref = key ? db.ref(`hero_slides/${key}`) : db.ref('hero_slides').push();
+            const promise = key ? ref.update(data) : ref.set(data);
+
+            promise.then(() => {
+                showToast("Banner Saved");
+                resetSliderForm();
+            }).catch(e => {
+                alert("Error: " + e.message);
+            })
+            .finally(() => setLoading('btn-save-slide', false, "Save Banner"));
+        }
+
+        function editSlider(key, s) {
+            document.getElementById('s-form-title').innerText = "Edit Banner";
+            document.getElementById('s-key').value = key;
+            document.getElementById('s-title').value = s.title;
+            document.getElementById('s-img').value = s.img;
+            document.getElementById('s-cancel-btn').classList.remove('hidden');
+            document.getElementById('sliders').scrollIntoView();
+        }
+
+        function resetSliderForm() {
+            document.getElementById('s-form-title').innerText = "Add / Edit Banner";
+            document.getElementById('s-key').value = "";
+            document.getElementById('s-title').value = "";
+            document.getElementById('s-img').value = "";
+            document.getElementById('s-cancel-btn').classList.add('hidden');
+        }
+
+        // --- SETTINGS & PAYMENT ---
+        function saveSettings() {
+            log("Saving Settings...");
+            setLoading('btn-save-set', true, '<i class="fas fa-save"></i> Save All Settings');
+            
+            // General
+            const phone = document.getElementById('set-phone').value;
+            const email = document.getElementById('set-email').value;
+            const address = document.getElementById('set-address').value;
+
+            // Payment Methods Checkbox
+            const payment_methods = {
+                cod: document.getElementById('pay-cod').checked,
+                easypaisa: document.getElementById('pay-ep').checked,
+                jazzcash: document.getElementById('pay-jc').checked,
+                whatsapp: document.getElementById('pay-wa').checked
+            };
+
+            // Accounts Info
+            const accounts = {
+                easypaisa: {
+                    title: document.getElementById('ep-title').value,
+                    number: document.getElementById('ep-num').value
+                },
+                jazzcash: {
+                    title: document.getElementById('jc-title').value,
+                    number: document.getElementById('jc-num').value
+                }
+            };
+
+            const data = { phone, email, address, payment_methods, accounts };
+
+            db.ref('settings').update(data)
+            .then(() => {
+                showToast("Settings Updated!");
+            })
+            .catch(e => {
+                alert("Settings Failed: " + e.message);
+            })
+            .finally(() => setLoading('btn-save-set', false, '<i class="fas fa-save"></i> Save All Settings'));
+        }
+
+        function updateOrderStatus(key, status) {
+            if(!status) return;
+            log("Updating Order Status: " + status);
+            db.ref(`orders/${key}`).update({ status })
+            .then(() => showToast("Order Status Updated"))
+            .catch(e => {
+                alert("Status Error: " + e.message);
+            });
+        }
+    </script>
+</body>
+</html>
